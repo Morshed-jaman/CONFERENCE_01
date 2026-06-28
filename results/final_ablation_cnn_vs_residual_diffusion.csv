@@ -1,0 +1,3 @@
+Model,Model Type,PSNR,SSIM,MAE,Edge Score,Main Interpretation
+Quality-aware CNN + L1/MSE,CNN only,30.5746,0.8737,0.017368,0.8969,"Strong supervised reconstruction baseline using proxy quality conditioning; strongest of these two rows on PSNR, SSIM, and MAE."
+CNN-Residual Diffusion SR,CNN + residual diffusion,29.8726,0.8686,0.020557,0.9542,"Residual diffusion improves edge/boundary refinement, reflected in the higher edge score, but it is not the best model for all metrics."

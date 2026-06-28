@@ -1,0 +1,1 @@
+These files were archived because threshold-based Dice/IoU and the first U-Net segmentation attempt produced unreliable anatomy metrics. They are not used in the final paper. The final paper uses mask-based anatomy preservation metrics and, if reliable, the improved U-Net segmentation results from script 39.

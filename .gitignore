@@ -1,0 +1,113 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local tooling and agent state
+.agents/
+.codex/
+
+# Local environment and secrets
+.env
+.env.*
+*.pem
+*.key
+*.crt
+credentials*
+secrets*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Raw datasets and large files
+data/raw/
+*.zip
+*.tar
+*.gz
+*.mha
+*.nii
+*.nii.gz
+*.npz
+
+# Processed datasets and generated frame caches
+data/processed/HC18_SR/
+data/processed/**/*.png
+data/processed/**/*.jpg
+data/processed/**/*.db
+
+# Large processed frame folders
+data/processed/ACOUSLIC_AI/frames/
+data/processed/ACOUSLIC_AI/temp_mha/
+data/processed/ACOUSLIC_AI/extracted/
+data/processed/ACOUSLIC_AI/**/*.png
+data/processed/ACOUSLIC_AI/**/*.jpg
+
+# Model checkpoints
+results/models/
+*.pth
+*.pt
+*.ckpt
+
+# Training/cache outputs
+runs/
+wandb/
+logs/
+temp/
+tmp/
+
+# Very large generated outputs
+results/sr_outputs/
+results/acouslic_ai/adaptive_enhanced_frames/
+results/acouslic_ai/learned_adaptive_enhanced_frames/
+results/acouslic_ai/enhanced_frames_quality_aware_l1_mse/
+results/acouslic_ai/feedback_report/sweep_quality_timeline_examples/
+results/backups/
+results/**/*frames*/
+results/**/*frame*/
+results/**/*.png
+
+# Keep summary/report files
+!reports/
+!reports/**
+!README.md
+!requirements.txt
+!scripts/
+!scripts/**
+!results/**/*.md
+!results/**/*.csv
+
+# Keep curated final figures only.
+!results/**/figures/*.png
+!results/**/figures/**/*.png
+!results/**/*_figures/*.png
+!results/**/*_figures/**/*.png
+!results/visual_*/*.png
+!results/visual_*/**/*.png
+!results/acouslic_ai/proxy_quality_visuals/*.png
+!results/acouslic_ai/proxy_quality_visuals/**/*.png
+!results/acouslic_ai/manual_review/contact_sheets/*.png
+!results/final_visual_comparison/*.png
+!results/final_all_visual_comparison/*.png
+!results/anatomy_preservation_visuals/*.png
+!results/anatomy_preservation_all_models_visuals/*.png
+!results/report_assets/*.png
+!results/acouslic_ai/feedback_report/*.png
+!results/acouslic_ai/feedback_report/feedback_examples/*.png
+!results/acouslic_ai/proxy_quality_embedding_confusion_matrix.png
+
+# Re-apply cache ignores after directory whitelists.
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd

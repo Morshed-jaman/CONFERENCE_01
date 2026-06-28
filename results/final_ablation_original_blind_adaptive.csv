@@ -1,0 +1,5 @@
+Method,Frame-Level Improvement,Gain over Blind Enhancement,Main Interpretation
+Original / No Enhancement,0.00%,,Reference condition with no enhancement; proxy frame-quality improvement is defined as zero.
+Blind Enhancement,8.00%,,Applies enhancement without adaptive feedback; improves a limited subset under proxy quality labels.
+Adaptive Feedback-Aware Enhancement,20.10%,,"Uses proxy quality labels to select keep, enhancement, denoising, or repeat/reacquisition actions."
+Gain over Blind Enhancement,,+12.10 percentage points,Adaptive feedback-aware decisions add 12.10 percentage points beyond blind enhancement.

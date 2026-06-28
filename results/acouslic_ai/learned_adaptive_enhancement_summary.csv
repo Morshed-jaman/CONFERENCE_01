@@ -1,0 +1,14 @@
+scope,original_proxy_label,action_taken,total_frames,number_of_frames_improved,percentage_improved,mean_delta_blur,mean_delta_contrast,mean_delta_edge_density,mean_delta_noise_proxy
+overall,all,all,10000,1724,17.24000000,0.00433659,0.00898792,-0.00803151,0.00208727
+by_action,all,clahe_then_enhance,457,11,2.40700219,0.08758731,0.15001167,0.03889889,0.04324109
+by_action,all,denoise_cautiously,2432,1707,70.18914474,-0.00098375,-0.00019882,-0.04024722,-0.00156007
+by_action,all,enhance_blur,467,6,1.28479657,0.01227193,0.04669672,-0.00045110,0.01050447
+by_action,all,feedback_repeat_or_reacquire,2000,0,0.00000000,0.00000000,0.00000000,0.00000000,0.00000000
+by_action,all,feedback_warning_low_confidence,109,0,0.00000000,0.00000000,0.00000000,0.00000000,0.00000000
+by_action,all,keep_original,4451,0,0.00000000,0.00000000,0.00000000,0.00000000,0.00000000
+by_action,all,keep_original_low_confidence,84,0,0.00000000,0.00000000,0.00000000,0.00000000,0.00000000
+by_original_label,blurry_frame,all,507,4,0.78895464,0.01120025,0.04263427,-0.00043191,0.00958814
+by_original_label,good_frame,all,4531,0,0.00000000,0.00002104,0.00005523,-0.00056421,-0.00000206
+by_original_label,low_contrast_frame,all,469,5,1.06609808,0.08393206,0.14372714,0.03714933,0.04141691
+by_original_label,noisy_frame,all,2462,1706,69.29325751,-0.00095066,-0.00019159,-0.03867380,-0.00150410
+by_original_label,poor_frame,all,2031,9,0.44313146,0.00027989,0.00053028,0.00012415,0.00014741

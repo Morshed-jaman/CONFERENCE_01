@@ -1,0 +1,7 @@
+scope,original_frame_quality_label,total_frames,number_of_frames_improved,percentage_improved,mean_delta_blur,mean_delta_contrast,mean_delta_edge_density,mean_delta_noise_proxy
+overall,all,5000,400,8.00000000,0.05930315,0.07212705,0.00200477,0.02676051
+by_original_label,blurry_frame,261,0,0.00000000,0.02998772,0.05921834,0.00162901,0.01754508
+by_original_label,good_frame,2257,0,0.00000000,0.05663685,0.07781871,0.00173643,0.02788745
+by_original_label,low_contrast_frame,243,0,0.00000000,0.04409757,0.07274080,-0.01846188,0.02099414
+by_original_label,noisy_frame,1232,0,0.00000000,0.11397743,0.10628929,0.01023410,0.04531887
+by_original_label,poor_frame,1007,400,39.72194638,0.00965610,0.02077261,-0.00242563,0.00530970
