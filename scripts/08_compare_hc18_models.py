@@ -18,6 +18,17 @@ from PIL import Image, ImageDraw
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 from torch.utils.data import DataLoader
 
+from metrics_utils import (
+    PyiqaMetricBundle,
+    compute_brisque,
+    compute_edge_score,
+    compute_lpips,
+    compute_mae,
+    compute_niqe,
+    compute_psnr,
+    compute_ssim,
+)
+
 # Keep all paths relative to the project root. The script is expected to be run
 # from the project root with: python .\scripts\08_compare_hc18_models.py
 PROJECT_ROOT = Path(".")
@@ -199,15 +210,26 @@ def compute_quality_normalization_stats(
     return mean.view(1, -1), std.view(1, -1)
 
 
-def evaluate_metrics(output: torch.Tensor, hr: torch.Tensor) -> Dict[str, float]:
+def evaluate_metrics(
+    output: torch.Tensor,
+    hr: torch.Tensor,
+    device: torch.device,
+    metric_bundle: PyiqaMetricBundle | None = None,
+) -> Dict[str, float]:
     output_np = tensor_to_2d_numpy(output)
     hr_np = tensor_to_2d_numpy(hr)
     psnr, ssim, mae = psnr_ssim_mae(output_np, hr_np)
+    lpips_metric = metric_bundle.lpips if metric_bundle is not None else None
+    niqe_metric = metric_bundle.niqe if metric_bundle is not None else None
+    brisque_metric = metric_bundle.brisque if metric_bundle is not None else None
     return {
         "psnr": psnr,
         "ssim": ssim,
         "mae": mae,
         "edge_score": edge_similarity(output, hr),
+        "lpips": compute_lpips(output, hr, device=device, metric=lpips_metric),
+        "niqe": compute_niqe(output, device=device, metric=niqe_metric),
+        "brisque": compute_brisque(output, device=device, metric=brisque_metric),
     }
 
 
@@ -223,8 +245,11 @@ def add_metric_rows(
             "method": METHOD_LABELS[method_key],
             "psnr": metrics["psnr"],
             "ssim": metrics["ssim"],
+            "lpips": metrics["lpips"],
             "mae": metrics["mae"],
             "edge_score": metrics["edge_score"],
+            "niqe": metrics["niqe"],
+            "brisque": metrics["brisque"],
         }
     )
 
@@ -243,10 +268,16 @@ def summarize(rows: List[Dict[str, object]]) -> List[Dict[str, object]]:
                 "std_psnr": float(np.std([row["psnr"] for row in method_rows])),
                 "mean_ssim": float(np.mean([row["ssim"] for row in method_rows])),
                 "std_ssim": float(np.std([row["ssim"] for row in method_rows])),
+                "mean_lpips": float(np.mean([row["lpips"] for row in method_rows])),
+                "std_lpips": float(np.std([row["lpips"] for row in method_rows])),
                 "mean_mae": float(np.mean([row["mae"] for row in method_rows])),
                 "std_mae": float(np.std([row["mae"] for row in method_rows])),
                 "mean_edge_score": float(np.mean([row["edge_score"] for row in method_rows])),
                 "std_edge_score": float(np.std([row["edge_score"] for row in method_rows])),
+                "mean_niqe": float(np.mean([row["niqe"] for row in method_rows])),
+                "std_niqe": float(np.std([row["niqe"] for row in method_rows])),
+                "mean_brisque": float(np.mean([row["brisque"] for row in method_rows])),
+                "std_brisque": float(np.std([row["brisque"] for row in method_rows])),
             }
         )
     return summary_rows
@@ -267,9 +298,10 @@ def format_float(value: object, digits: int = 6) -> str:
 def build_markdown_table(summary_rows: List[Dict[str, object]]) -> str:
     header = (
         "| method | mean_psnr | std_psnr | mean_ssim | std_ssim | "
-        "mean_mae | std_mae | mean_edge_score |\n"
+        "mean_lpips | std_lpips | mean_mae | std_mae | mean_edge_score | "
+        "mean_niqe | std_niqe | mean_brisque | std_brisque |\n"
     )
-    separator = "|---|---:|---:|---:|---:|---:|---:|---:|\n"
+    separator = "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n"
     body = ""
     for row in summary_rows:
         body += (
@@ -278,9 +310,15 @@ def build_markdown_table(summary_rows: List[Dict[str, object]]) -> str:
             f"{format_float(row['std_psnr'], 4)} | "
             f"{format_float(row['mean_ssim'], 4)} | "
             f"{format_float(row['std_ssim'], 4)} | "
+            f"{format_float(row['mean_lpips'], 6)} | "
+            f"{format_float(row['std_lpips'], 6)} | "
             f"{format_float(row['mean_mae'], 6)} | "
             f"{format_float(row['std_mae'], 6)} | "
-            f"{format_float(row['mean_edge_score'], 6)} |\n"
+            f"{format_float(row['mean_edge_score'], 6)} | "
+            f"{format_float(row['mean_niqe'], 6)} | "
+            f"{format_float(row['std_niqe'], 6)} | "
+            f"{format_float(row['mean_brisque'], 6)} | "
+            f"{format_float(row['std_brisque'], 6)} |\n"
         )
     return header + separator + body
 
@@ -292,9 +330,15 @@ def print_terminal_table(summary_rows: List[Dict[str, object]]) -> None:
         "std_psnr",
         "mean_ssim",
         "std_ssim",
+        "mean_lpips",
+        "std_lpips",
         "mean_mae",
         "std_mae",
         "mean_edge_score",
+        "mean_niqe",
+        "std_niqe",
+        "mean_brisque",
+        "std_brisque",
     ]
     widths = {
         "method": max(len("method"), max(len(str(row["method"])) for row in summary_rows)),
@@ -302,9 +346,15 @@ def print_terminal_table(summary_rows: List[Dict[str, object]]) -> None:
         "std_psnr": 9,
         "mean_ssim": 10,
         "std_ssim": 9,
+        "mean_lpips": 10,
+        "std_lpips": 10,
         "mean_mae": 10,
         "std_mae": 9,
         "mean_edge_score": 15,
+        "mean_niqe": 10,
+        "std_niqe": 10,
+        "mean_brisque": 12,
+        "std_brisque": 12,
     }
 
     header = "  ".join(column.ljust(widths[column]) for column in columns)
@@ -319,9 +369,15 @@ def print_terminal_table(summary_rows: List[Dict[str, object]]) -> None:
                     format_float(row["std_psnr"], 4).rjust(widths["std_psnr"]),
                     format_float(row["mean_ssim"], 4).rjust(widths["mean_ssim"]),
                     format_float(row["std_ssim"], 4).rjust(widths["std_ssim"]),
+                    format_float(row["mean_lpips"], 6).rjust(widths["mean_lpips"]),
+                    format_float(row["std_lpips"], 6).rjust(widths["std_lpips"]),
                     format_float(row["mean_mae"], 6).rjust(widths["mean_mae"]),
                     format_float(row["std_mae"], 6).rjust(widths["std_mae"]),
                     format_float(row["mean_edge_score"], 6).rjust(widths["mean_edge_score"]),
+                    format_float(row["mean_niqe"], 6).rjust(widths["mean_niqe"]),
+                    format_float(row["std_niqe"], 6).rjust(widths["std_niqe"]),
+                    format_float(row["mean_brisque"], 6).rjust(widths["mean_brisque"]),
+                    format_float(row["std_brisque"], 6).rjust(widths["std_brisque"]),
                 ]
             )
         )
@@ -425,6 +481,7 @@ def main() -> None:
 
     per_image_rows: List[Dict[str, object]] = []
     visual_count = min(10, len(test_dataset))
+    metric_bundle = PyiqaMetricBundle.create(device)
 
     with torch.no_grad():
         for index in range(len(test_dataset)):
@@ -446,10 +503,10 @@ def main() -> None:
                 quality_features,
             ).clamp(0.0, 1.0)
 
-            lq_metrics = evaluate_metrics(lq, hr)
-            sr_only_metrics = evaluate_metrics(sr_only_output, hr)
-            quality_aware_metrics = evaluate_metrics(quality_aware_output, hr)
-            quality_aware_l1_mse_metrics = evaluate_metrics(quality_aware_l1_mse_output, hr)
+            lq_metrics = evaluate_metrics(lq, hr, device, metric_bundle)
+            sr_only_metrics = evaluate_metrics(sr_only_output, hr, device, metric_bundle)
+            quality_aware_metrics = evaluate_metrics(quality_aware_output, hr, device, metric_bundle)
+            quality_aware_l1_mse_metrics = evaluate_metrics(quality_aware_l1_mse_output, hr, device, metric_bundle)
 
             add_metric_rows(per_image_rows, image_id, "lq_mixed", lq_metrics)
             add_metric_rows(per_image_rows, image_id, "sr_only", sr_only_metrics)
@@ -489,7 +546,7 @@ def main() -> None:
     write_csv(
         PER_IMAGE_CSV,
         per_image_rows,
-        ["image_id", "method", "psnr", "ssim", "mae", "edge_score"],
+        ["image_id", "method", "psnr", "ssim", "lpips", "mae", "edge_score", "niqe", "brisque"],
     )
     write_csv(
         SUMMARY_CSV,
@@ -500,10 +557,16 @@ def main() -> None:
             "std_psnr",
             "mean_ssim",
             "std_ssim",
+            "mean_lpips",
+            "std_lpips",
             "mean_mae",
             "std_mae",
             "mean_edge_score",
             "std_edge_score",
+            "mean_niqe",
+            "std_niqe",
+            "mean_brisque",
+            "std_brisque",
         ],
     )
 

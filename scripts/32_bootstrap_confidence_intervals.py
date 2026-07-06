@@ -38,10 +38,23 @@ OUTPUT_MD = Path("results/bootstrap_confidence_intervals.md")
 FIGURE_DIR = Path("results/bootstrap_ci_figures")
 
 HC18_METRICS = {
+    "PSNR": "PSNR",
+    "SSIM": "SSIM",
+    "LPIPS": "LPIPS",
+    "MAE": "MAE",
+    "EdgeScore": "Edge score",
+    "NIQE": "NIQE",
+    "BRISQUE": "BRISQUE",
+}
+
+HC18_COLUMN_ALIASES = {
     "psnr": "PSNR",
     "ssim": "SSIM",
+    "lpips": "LPIPS",
     "mae": "MAE",
-    "edge_score": "edge_score",
+    "edge_score": "EdgeScore",
+    "niqe": "NIQE",
+    "brisque": "BRISQUE",
 }
 
 ANATOMY_METRICS = {
@@ -196,6 +209,11 @@ def compute_hc18_rows(
                 )
             )
     return rows
+
+
+def normalize_hc18_columns(hc18_df: pd.DataFrame) -> pd.DataFrame:
+    """Accept both legacy lowercase and current publication-facing columns."""
+    return hc18_df.rename(columns={k: v for k, v in HC18_COLUMN_ALIASES.items() if k in hc18_df.columns})
 
 
 def compute_anatomy_rows(
@@ -495,10 +513,13 @@ def run(args: argparse.Namespace) -> None:
     if args.n_bootstrap <= 0:
         raise ValueError("--n_bootstrap must be greater than 0.")
 
-    hc18_df = read_csv_required(
-        args.hc18_per_image,
-        ["image_id", "method", *HC18_METRICS.keys()],
-    )
+    hc18_df = read_csv_required(args.hc18_per_image, ["image_id", "method"])
+    hc18_df = normalize_hc18_columns(hc18_df)
+    missing_hc18 = [column for column in HC18_METRICS.keys() if column not in hc18_df.columns]
+    if missing_hc18:
+        raise ValueError(
+            f"Missing required HC18 metric columns in {resolve_project_path(args.hc18_per_image)}: {missing_hc18}"
+        )
     anatomy_df = read_csv_required(
         args.anatomy_per_image,
         ["image_id", "method", *ANATOMY_METRICS.keys()],

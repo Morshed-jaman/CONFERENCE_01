@@ -16,68 +16,75 @@ clinical validation.
 
 | Method | Metric | N | Mean | 95% CI lower | 95% CI upper | Unit |
 | --- | --- | --- | --- | --- | --- | --- |
-| CNN-Residual Diffusion SR | PSNR | 150 | 29.8726 | 29.7001 | 30.0506 |  |
-| CNN-Residual Diffusion SR | SSIM | 150 | 0.8686 | 0.8658 | 0.8714 |  |
-| CNN-Residual Diffusion SR | MAE | 150 | 0.0206 | 0.02 | 0.0211 |  |
-| CNN-Residual Diffusion SR | edge_score | 150 | 0.9542 | 0.9523 | 0.9559 |  |
-| Conditional Diffusion SR | PSNR | 150 | 28.2914 | 28.1077 | 28.4791 |  |
-| Conditional Diffusion SR | SSIM | 150 | 0.8297 | 0.8257 | 0.8338 |  |
-| Conditional Diffusion SR | MAE | 150 | 0.0254 | 0.0247 | 0.0261 |  |
-| Conditional Diffusion SR | edge_score | 150 | 0.9343 | 0.9318 | 0.9366 |  |
-| LQ mixed baseline | PSNR | 150 | 25.3376 | 25.1361 | 25.5339 |  |
-| LQ mixed baseline | SSIM | 150 | 0.6733 | 0.6624 | 0.684 |  |
-| LQ mixed baseline | MAE | 150 | 0.0338 | 0.0326 | 0.0351 |  |
-| LQ mixed baseline | edge_score | 150 | 0.8147 | 0.8098 | 0.8194 |  |
-| Quality-aware CNN | PSNR | 150 | 30.4013 | 30.1584 | 30.6637 |  |
-| Quality-aware CNN | SSIM | 150 | 0.8714 | 0.866 | 0.8763 |  |
-| Quality-aware CNN | MAE | 150 | 0.0177 | 0.017 | 0.0185 |  |
-| Quality-aware CNN | edge_score | 150 | 0.8952 | 0.8907 | 0.8994 |  |
-| Quality-aware CNN + L1/MSE | PSNR | 150 | 30.5746 | 30.3064 | 30.8639 |  |
-| Quality-aware CNN + L1/MSE | SSIM | 150 | 0.8737 | 0.8685 | 0.8788 |  |
-| Quality-aware CNN + L1/MSE | MAE | 150 | 0.0174 | 0.0167 | 0.018 |  |
-| Quality-aware CNN + L1/MSE | edge_score | 150 | 0.8969 | 0.8932 | 0.9013 |  |
-| Quality-aware Diffusion SR v2 | PSNR | 150 | 28.2739 | 28.0808 | 28.4746 |  |
-| Quality-aware Diffusion SR v2 | SSIM | 150 | 0.7995 | 0.7942 | 0.8053 |  |
-| Quality-aware Diffusion SR v2 | MAE | 150 | 0.0264 | 0.0256 | 0.0273 |  |
-| Quality-aware Diffusion SR v2 | edge_score | 150 | 0.9353 | 0.9328 | 0.9379 |  |
-| SR-only CNN | PSNR | 150 | 30.7646 | 30.4716 | 31.0466 |  |
-| SR-only CNN | SSIM | 150 | 0.851 | 0.8432 | 0.8588 |  |
-| SR-only CNN | MAE | 150 | 0.0182 | 0.0175 | 0.019 |  |
-| SR-only CNN | edge_score | 150 | 0.9082 | 0.9038 | 0.9122 |  |
+| LQ_mixed baseline | PSNR | 150 | 25.3849 | 25.1905 | 25.6075 |  |
+| LQ_mixed baseline | SSIM | 150 | 0.6723 | 0.6607 | 0.6837 |  |
+| LQ_mixed baseline | LPIPS | 150 | 0.351 | 0.3445 | 0.3573 |  |
+| LQ_mixed baseline | MAE | 150 | 0.0337 | 0.0324 | 0.035 |  |
+| LQ_mixed baseline | Edge score | 150 | 0.9779 | 0.9771 | 0.9788 |  |
+| LQ_mixed baseline | NIQE | 150 | 9.8086 | 9.677 | 9.9526 |  |
+| LQ_mixed baseline | BRISQUE | 150 | 69.1681 | 68.6251 | 69.7372 |  |
+| Quality-aware SR | PSNR | 150 | 30.5804 | 30.2978 | 30.8664 |  |
+| Quality-aware SR | SSIM | 150 | 0.8743 | 0.8693 | 0.8795 |  |
+| Quality-aware SR | LPIPS | 150 | 0.2042 | 0.1971 | 0.2107 |  |
+| Quality-aware SR | MAE | 150 | 0.0174 | 0.0168 | 0.0181 |  |
+| Quality-aware SR | Edge score | 150 | 0.985 | 0.9843 | 0.9856 |  |
+| Quality-aware SR | NIQE | 150 | 7.6178 | 7.4693 | 7.7771 |  |
+| Quality-aware SR | BRISQUE | 150 | 57.5157 | 56.7994 | 58.2671 |  |
+| Quality-aware SR + LPIPS + GAN | PSNR | 150 | 28.7435 | 28.453 | 29.0224 |  |
+| Quality-aware SR + LPIPS + GAN | SSIM | 150 | 0.8266 | 0.8206 | 0.8322 |  |
+| Quality-aware SR + LPIPS + GAN | LPIPS | 150 | 0.1131 | 0.1093 | 0.1169 |  |
+| Quality-aware SR + LPIPS + GAN | MAE | 150 | 0.022 | 0.0212 | 0.0228 |  |
+| Quality-aware SR + LPIPS + GAN | Edge score | 150 | 0.9827 | 0.982 | 0.9833 |  |
+| Quality-aware SR + LPIPS + GAN | NIQE | 150 | 6.1602 | 5.9602 | 6.3457 |  |
+| Quality-aware SR + LPIPS + GAN | BRISQUE | 150 | 27.4303 | 26.0786 | 28.6 |  |
+| SR-only | PSNR | 150 | 30.9856 | 30.708 | 31.2652 |  |
+| SR-only | SSIM | 150 | 0.8564 | 0.8482 | 0.8635 |  |
+| SR-only | LPIPS | 150 | 0.1749 | 0.1684 | 0.1813 |  |
+| SR-only | MAE | 150 | 0.0177 | 0.017 | 0.0184 |  |
+| SR-only | Edge score | 150 | 0.9857 | 0.9852 | 0.9863 |  |
+| SR-only | NIQE | 150 | 7.4523 | 7.2688 | 7.6632 |  |
+| SR-only | BRISQUE | 150 | 54.5148 | 53.6033 | 55.414 |  |
+| SR-only + LPIPS + GAN | PSNR | 150 | 27.8637 | 27.6268 | 28.0702 |  |
+| SR-only + LPIPS + GAN | SSIM | 150 | 0.7814 | 0.774 | 0.7895 |  |
+| SR-only + LPIPS + GAN | LPIPS | 150 | 0.1237 | 0.1204 | 0.1277 |  |
+| SR-only + LPIPS + GAN | MAE | 150 | 0.0251 | 0.0242 | 0.0261 |  |
+| SR-only + LPIPS + GAN | Edge score | 150 | 0.9813 | 0.9806 | 0.9819 |  |
+| SR-only + LPIPS + GAN | NIQE | 150 | 6.8983 | 6.7028 | 7.0922 |  |
+| SR-only + LPIPS + GAN | BRISQUE | 150 | 29.0869 | 27.9074 | 30.3213 |  |
 
 ## HC18 Anatomy Preservation CIs
 
 | Method | Metric | N | Mean | 95% CI lower | 95% CI upper | Unit |
 | --- | --- | --- | --- | --- | --- | --- |
-| CNN-Residual Diffusion SR | inside-mask MAE | 150 | 0.0363 | 0.0349 | 0.0377 |  |
-| CNN-Residual Diffusion SR | boundary error | 150 | 0.0349 | 0.0336 | 0.0363 |  |
-| CNN-Residual Diffusion SR | boundary edge similarity | 150 | 0.9415 | 0.9387 | 0.9444 |  |
-| Conditional Diffusion SR | inside-mask MAE | 150 | 0.0449 | 0.0431 | 0.0467 |  |
+| CNN-Residual Diffusion SR | inside-mask MAE | 150 | 0.0363 | 0.0349 | 0.0378 |  |
+| CNN-Residual Diffusion SR | boundary error | 150 | 0.0349 | 0.0336 | 0.0364 |  |
+| CNN-Residual Diffusion SR | boundary edge similarity | 150 | 0.9415 | 0.9387 | 0.9442 |  |
+| Conditional Diffusion SR | inside-mask MAE | 150 | 0.0449 | 0.0431 | 0.0468 |  |
 | Conditional Diffusion SR | boundary error | 150 | 0.0435 | 0.0418 | 0.0452 |  |
-| Conditional Diffusion SR | boundary edge similarity | 150 | 0.932 | 0.9287 | 0.9352 |  |
-| LQ mixed baseline | inside-mask MAE | 150 | 0.0688 | 0.0654 | 0.0719 |  |
-| LQ mixed baseline | boundary error | 150 | 0.067 | 0.0641 | 0.07 |  |
-| LQ mixed baseline | boundary edge similarity | 150 | 0.8217 | 0.8152 | 0.8283 |  |
-| Quality-aware CNN | inside-mask MAE | 150 | 0.0325 | 0.0311 | 0.034 |  |
+| Conditional Diffusion SR | boundary edge similarity | 150 | 0.932 | 0.9284 | 0.9353 |  |
+| LQ mixed baseline | inside-mask MAE | 150 | 0.0688 | 0.0653 | 0.0719 |  |
+| LQ mixed baseline | boundary error | 150 | 0.067 | 0.064 | 0.0701 |  |
+| LQ mixed baseline | boundary edge similarity | 150 | 0.8217 | 0.8152 | 0.8281 |  |
+| Quality-aware CNN | inside-mask MAE | 150 | 0.0325 | 0.0309 | 0.034 |  |
 | Quality-aware CNN | boundary error | 150 | 0.0312 | 0.0299 | 0.0327 |  |
-| Quality-aware CNN | boundary edge similarity | 150 | 0.9561 | 0.9539 | 0.9582 |  |
-| Quality-aware CNN + L1/MSE | inside-mask MAE | 150 | 0.032 | 0.0305 | 0.0334 |  |
-| Quality-aware CNN + L1/MSE | boundary error | 150 | 0.0305 | 0.0292 | 0.0319 |  |
-| Quality-aware CNN + L1/MSE | boundary edge similarity | 150 | 0.9563 | 0.954 | 0.9584 |  |
-| Quality-aware Diffusion SR v2 | inside-mask MAE | 150 | 0.0433 | 0.0417 | 0.0451 |  |
-| Quality-aware Diffusion SR v2 | boundary error | 150 | 0.0419 | 0.0402 | 0.0435 |  |
-| Quality-aware Diffusion SR v2 | boundary edge similarity | 150 | 0.9408 | 0.9379 | 0.9435 |  |
-| SR-only CNN | inside-mask MAE | 150 | 0.0316 | 0.0301 | 0.0329 |  |
-| SR-only CNN | boundary error | 150 | 0.0303 | 0.029 | 0.0316 |  |
-| SR-only CNN | boundary edge similarity | 150 | 0.9582 | 0.9559 | 0.9604 |  |
+| Quality-aware CNN | boundary edge similarity | 150 | 0.9561 | 0.9538 | 0.9582 |  |
+| Quality-aware CNN + L1/MSE | inside-mask MAE | 150 | 0.032 | 0.0304 | 0.0335 |  |
+| Quality-aware CNN + L1/MSE | boundary error | 150 | 0.0305 | 0.0292 | 0.032 |  |
+| Quality-aware CNN + L1/MSE | boundary edge similarity | 150 | 0.9563 | 0.9541 | 0.9584 |  |
+| Quality-aware Diffusion SR v2 | inside-mask MAE | 150 | 0.0433 | 0.0416 | 0.045 |  |
+| Quality-aware Diffusion SR v2 | boundary error | 150 | 0.0419 | 0.0403 | 0.0434 |  |
+| Quality-aware Diffusion SR v2 | boundary edge similarity | 150 | 0.9408 | 0.9379 | 0.9434 |  |
+| SR-only CNN | inside-mask MAE | 150 | 0.0316 | 0.0302 | 0.0329 |  |
+| SR-only CNN | boundary error | 150 | 0.0303 | 0.0291 | 0.0316 |  |
+| SR-only CNN | boundary edge similarity | 150 | 0.9582 | 0.956 | 0.9602 |  |
 
 ## ACOUSLIC-AI CIs
 
 | Source | Metric | N | Mean | 95% CI lower | 95% CI upper | Unit | Note |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| ACOUSLIC-AI adaptive enhancement | frame improvement percentage | 10000 | 17.94 | 17.1997 | 18.7 | % | Bootstrap over frames. |
-| ACOUSLIC-AI sweep feedback | poor-frame-ratio reduction | 100 | 17.94 | 16.3 | 19.69 | percentage points | Bootstrap over sweeps. |
-| ACOUSLIC-AI sweep feedback | good-frame-ratio improvement | 100 | 17.94 | 16.3998 | 19.55 | percentage points | Bootstrap over sweeps. |
+| ACOUSLIC-AI adaptive enhancement | frame improvement percentage | 10000 | 17.94 | 17.18 | 18.7 | % | Bootstrap over frames. |
+| ACOUSLIC-AI sweep feedback | poor-frame-ratio reduction | 100 | 17.94 | 16.2495 | 19.5802 | percentage points | Bootstrap over sweeps. |
+| ACOUSLIC-AI sweep feedback | good-frame-ratio improvement | 100 | 17.94 | 16.28 | 19.6422 | percentage points | Bootstrap over sweeps. |
 
 ## Outputs
 

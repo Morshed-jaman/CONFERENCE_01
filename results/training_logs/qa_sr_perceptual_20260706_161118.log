@@ -1,0 +1,13 @@
+model=qa_sr_perceptual
+arch=quality_aware
+batch_size=8
+epochs=40
+best_val_psnr=28.8713
+checkpoint=results\models\qa_sr_perceptual_hc18_best.pth
+final_checkpoint=results\models\qa_sr_perceptual_hc18_final.pth
+l1_weight=1.0
+mse_weight=0.0
+lpips_weight=0.2
+gan_weight=0.005
+gan_enabled=True
+perceptual_backend=pyiqa_lpips

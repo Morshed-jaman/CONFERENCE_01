@@ -1,0 +1,13 @@
+model=short_sr_l1_mse
+arch=sr_only
+batch_size=8
+epochs=10
+best_val_psnr=30.5444
+checkpoint=results\models\short_sr_l1_mse_hc18_best.pth
+final_checkpoint=results\models\short_sr_l1_mse_hc18_final.pth
+l1_weight=0.8
+mse_weight=0.2
+lpips_weight=0.0
+gan_weight=0.0
+gan_enabled=False
+perceptual_backend=disabled

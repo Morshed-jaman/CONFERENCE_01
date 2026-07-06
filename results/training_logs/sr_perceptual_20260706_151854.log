@@ -1,0 +1,7 @@
+model=sr_perceptual
+arch=sr_only
+batch_size=4
+epochs=10
+best_val_psnr=30.7295
+checkpoint=results\models\sr_perceptual_hc18_best.pth
+gan_enabled=False

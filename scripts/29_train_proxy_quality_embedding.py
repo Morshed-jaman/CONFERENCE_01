@@ -491,6 +491,16 @@ def save_checkpoint(
     )
 
 
+def load_proxy_quality_checkpoint(checkpoint_path: Path, map_location: str | torch.device = "cpu") -> dict:
+    # This is an internally generated/trusted checkpoint containing metadata
+    # arrays in addition to tensor weights, so PyTorch's weights_only loader is
+    # intentionally disabled here.
+    checkpoint = torch.load(checkpoint_path, map_location=map_location, weights_only=False)
+    if not isinstance(checkpoint, dict):
+        raise ValueError(f"Unsupported proxy quality checkpoint format: {checkpoint_path}")
+    return checkpoint
+
+
 def run(args: argparse.Namespace) -> None:
     if args.epochs <= 0:
         raise ValueError("--epochs must be greater than 0.")
