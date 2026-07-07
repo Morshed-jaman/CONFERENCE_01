@@ -1,0 +1,129 @@
+{
+  "best_sr": "swinir_light_phase_a",
+  "n_sources": 13,
+  "chi_square_tests": [
+    {
+      "comparison": "LQ_mixed vs HR",
+      "source_a": "LQ_mixed",
+      "source_b": "HR",
+      "chi2": 189.94248741912295,
+      "dof": 4,
+      "p_value": 5.453232827129358e-40,
+      "observed": [
+        [
+          0,
+          57,
+          0,
+          0,
+          93
+        ],
+        [
+          80,
+          21,
+          11,
+          24,
+          14
+        ]
+      ],
+      "used_labels": [
+        "good_frame",
+        "blurry_frame",
+        "low_contrast_frame",
+        "noisy_frame",
+        "poor_frame"
+      ]
+    },
+    {
+      "comparison": "swinir_light_phase_a vs LQ_mixed",
+      "source_a": "swinir_light_phase_a",
+      "source_b": "LQ_mixed",
+      "chi2": 49.69281585466557,
+      "dof": 2,
+      "p_value": 1.6193552814238292e-11,
+      "observed": [
+        [
+          1,
+          116,
+          0,
+          0,
+          33
+        ],
+        [
+          0,
+          57,
+          0,
+          0,
+          93
+        ]
+      ],
+      "used_labels": [
+        "good_frame",
+        "blurry_frame",
+        "poor_frame"
+      ]
+    },
+    {
+      "comparison": "swinir_light_phase_a vs HR",
+      "source_a": "swinir_light_phase_a",
+      "source_b": "HR",
+      "chi2": 185.60614618863826,
+      "dof": 4,
+      "p_value": 4.6596631034341996e-39,
+      "observed": [
+        [
+          1,
+          116,
+          0,
+          0,
+          33
+        ],
+        [
+          80,
+          21,
+          11,
+          24,
+          14
+        ]
+      ],
+      "used_labels": [
+        "good_frame",
+        "blurry_frame",
+        "low_contrast_frame",
+        "noisy_frame",
+        "poor_frame"
+      ]
+    }
+  ],
+  "delta_prob_good": {
+    "best_sr": "swinir_light_phase_a",
+    "n_pairs": 150,
+    "mean_delta_prob_good": 0.009160083369730758,
+    "std_delta_prob_good": 0.0861252357107587,
+    "ci_low": 2.768901952996197e-09,
+    "ci_high": 0.02335860834205065,
+    "n_delta_positive": 133
+  },
+  "spearman_delta_prob_good_vs_delta_lpips": {
+    "best_sr": "swinir_light_phase_a",
+    "n_pairs": 150,
+    "rho": 0.5688522618064861,
+    "p_value": 3.094730049128844e-14,
+    "ci_low": 0.455751144389122,
+    "ci_high": 0.6737837348922202
+  },
+  "success_gates": {
+    "script60_outputs_exist": true,
+    "script61_outputs_exist": true,
+    "docs_contains_four_tables": true,
+    "hr_pct_good_gt_50": true,
+    "lq_pct_good_lt_hr": true,
+    "best_sr_pct_good_gt_lq": true,
+    "mean_delta_prob_good_gt_0_ci_excludes_0": true,
+    "spearman_positive_p_lt_0_05": true,
+    "feature_extraction_reused": true,
+    "checkpoint_normalization_used": true,
+    "per_image_rows_match_150_x_sources": true,
+    "summary_rows_match_sources": true
+  },
+  "verdict": "STRONG TRANSFER"
+}
