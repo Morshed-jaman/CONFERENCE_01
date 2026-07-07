@@ -25,6 +25,7 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from hc18_dataset import HC18SRDataset
+from models.swinir_light import build_swinir_light
 
 
 MANIFEST = PROJECT_ROOT / "data" / "processed" / "HC18_SR" / "hc18_lq_manifest.csv"
@@ -37,6 +38,9 @@ SR_ONLY_CHECKPOINT = RESULTS_DIR / "models" / "sr_only_hc18_best.pth"
 QA_CHECKPOINT = RESULTS_DIR / "models" / "quality_aware_sr_hc18_l1_mse_best.pth"
 SR_PERCEPTUAL_CHECKPOINT = RESULTS_DIR / "models" / "sr_perceptual_hc18_final.pth"
 QA_PERCEPTUAL_CHECKPOINT = RESULTS_DIR / "models" / "qa_sr_perceptual_hc18_final.pth"
+SWINIR_LABEL = "SwinIR-Light Phase A"
+SWINIR_CHECKPOINT = RESULTS_DIR / "models" / "swinir_light_phase_a_seed42" / "best_lpips.pth"
+SWINIR_EVAL_DIR = RESULTS_DIR / "eval" / "swinir_light_phase_a" / "test"
 CNN_RESIDUAL_OUTPUT_DIR = RESULTS_DIR / "sr_outputs" / "cnn_residual_diffusion_sr"
 
 
@@ -68,6 +72,7 @@ METHODS = [
         "quality_aware",
         QA_PERCEPTUAL_CHECKPOINT,
     ),
+    MethodSpec("swinir_light_phase_a", SWINIR_LABEL, "sr_model", "swinir_light", SWINIR_CHECKPOINT),
     MethodSpec("cnn_residual_diffusion", "CNN-Residual Diffusion", "png"),
 ]
 
@@ -124,6 +129,13 @@ def tensor_to_uint8_image(tensor: torch.Tensor) -> np.ndarray:
     return np.rint(np.clip(image, 0.0, 1.0) * 255.0).astype(np.uint8)
 
 
+def ensure_grayscale_tensor(output: torch.Tensor) -> torch.Tensor:
+    if output.dim() == 4 and output.size(1) == 3:
+        weights = output.new_tensor([0.299, 0.587, 0.114]).view(1, 3, 1, 1)
+        return (output * weights).sum(dim=1, keepdim=True)
+    return output
+
+
 def save_mask(path: Path, mask: np.ndarray) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     image = (mask.astype(np.uint8) * 255).astype(np.uint8)
@@ -147,6 +159,8 @@ def load_sr_models(
             model = sr_module.ResidualSRModel().to(device)
         elif method.model_key == "quality_aware":
             model = qa_module.QualityAwareSRModel().to(device)
+        elif method.model_key == "swinir_light":
+            model = build_swinir_light(use_checkpoint=False).to(device)
         else:
             raise ValueError(f"Unsupported SR model key: {method.model_key}")
 
@@ -211,6 +225,7 @@ def make_sr_image(
         output = model(lq, quality).clamp(0.0, 1.0)
     else:
         output = model(lq).clamp(0.0, 1.0)
+    output = ensure_grayscale_tensor(output).clamp(0.0, 1.0)
     return tensor_to_uint8_image(output)
 
 
@@ -385,6 +400,18 @@ def main() -> int:
             writer.writerow(row)
     summary_df.to_csv(SUMMARY_CSV, index=False)
 
+    swinir_rows = [row for row in rows if row["method"] == SWINIR_LABEL]
+    if swinir_rows:
+        SWINIR_EVAL_DIR.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame(swinir_rows, columns=PER_IMAGE_COLUMNS).to_csv(
+            SWINIR_EVAL_DIR / "downstream_per_image.csv",
+            index=False,
+        )
+        summary_df[summary_df["method"] == SWINIR_LABEL].to_csv(
+            SWINIR_EVAL_DIR / "downstream_summary.csv",
+            index=False,
+        )
+
     if skipped_unreadable_masks or skipped_empty_masks:
         print(
             "Skipped masks: "
@@ -398,6 +425,8 @@ def main() -> int:
     print(f"Wrote per-image metrics: {PER_IMAGE_CSV.relative_to(PROJECT_ROOT)}")
     print(f"Wrote summary metrics: {SUMMARY_CSV.relative_to(PROJECT_ROOT)}")
     print(f"Wrote predicted masks under: {MASK_ROOT.relative_to(PROJECT_ROOT)}")
+    if swinir_rows:
+        print(f"Wrote SwinIR downstream rows: {(SWINIR_EVAL_DIR / 'downstream_per_image.csv').relative_to(PROJECT_ROOT)}")
     print_acceptance(summary_df)
 
     if per_image_df.empty:

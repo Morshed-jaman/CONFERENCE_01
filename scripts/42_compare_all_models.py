@@ -29,13 +29,18 @@ from metrics_utils import (
     compute_niqe,
     compute_brisque,
     compute_edge_score,
+    get_pyiqa_metric,
 )
+from models.swinir_light import build_swinir_light
 
 
 MANIFEST = PROJECT_ROOT / "data" / "processed" / "HC18_SR" / "hc18_lq_manifest.csv"
 OUTPUT_PER_IMAGE = PROJECT_ROOT / "results" / "final_all_hc18_comparison_per_image.csv"
 OUTPUT_SUMMARY = PROJECT_ROOT / "results" / "final_all_hc18_comparison_summary.csv"
 OUTPUT_TABLE = PROJECT_ROOT / "results" / "final_all_hc18_comparison_table.md"
+SWINIR_LABEL = "SwinIR-Light Phase A"
+SWINIR_CHECKPOINT = PROJECT_ROOT / "results" / "models" / "swinir_light_phase_a_seed42" / "best_lpips.pth"
+SWINIR_EVAL_DIR = PROJECT_ROOT / "results" / "eval" / "swinir_light_phase_a" / "test"
 
 MODELS = [
     ("identity", None, "LQ_mixed baseline"),
@@ -55,6 +60,7 @@ MODELS = [
         PROJECT_ROOT / "results" / "models" / "qa_sr_perceptual_hc18_final.pth",
         "Quality-aware SR + LPIPS + GAN",
     ),
+    ("swinir_light", SWINIR_CHECKPOINT, SWINIR_LABEL),
 ]
 
 
@@ -74,6 +80,46 @@ def extract_state_dict(checkpoint: Any) -> Any:
     return checkpoint
 
 
+def ensure_grayscale_tensor(output: torch.Tensor) -> torch.Tensor:
+    if output.dim() == 4 and output.size(1) == 3:
+        weights = output.new_tensor([0.299, 0.587, 0.114]).view(1, 3, 1, 1)
+        return (output * weights).sum(dim=1, keepdim=True)
+    return output
+
+
+def to_rgb_tensor(image: torch.Tensor, device: torch.device) -> torch.Tensor:
+    tensor = image.detach().to(device=device, dtype=torch.float32).clamp(0.0, 1.0)
+    if tensor.dim() == 3:
+        tensor = tensor.unsqueeze(0)
+    if tensor.size(1) == 1:
+        tensor = tensor.repeat(1, 3, 1, 1)
+    return tensor
+
+
+def compute_dists(output: torch.Tensor, target: torch.Tensor, device: torch.device, metric: Any) -> float:
+    if metric is None:
+        return float("nan")
+    try:
+        with torch.no_grad():
+            score = metric(to_rgb_tensor(output, device), to_rgb_tensor(target, device))
+            if isinstance(score, (tuple, list)):
+                score = score[0]
+            if torch.is_tensor(score):
+                return float(score.detach().cpu().float().mean().item())
+            return float(score)
+    except Exception:
+        return float("nan")
+
+
+def write_csv_rows(path: Path, rows: list[dict[str, Any]], fieldnames: list[str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+
+
 def load_training_components(device: torch.device):
     sr_module = load_module("hc18_sr_only_train", SCRIPT_DIR / "05_train_sr_only_hc18.py")
     qa_module = load_module("hc18_quality_aware_train", SCRIPT_DIR / "07_train_quality_aware_sr_hc18.py")
@@ -89,6 +135,8 @@ def load_model_for_key(key: str, checkpoint: Path, device: torch.device, compone
         model = components["sr_only"]().to(device)
     elif key == "quality_aware":
         model = components["quality_aware"]().to(device)
+    elif key == "swinir_light":
+        model = build_swinir_light(use_checkpoint=False).to(device)
     else:
         raise ValueError(f"Unsupported model key: {key}")
 
@@ -141,6 +189,7 @@ def main():
     per_image_rows: List[Dict[str, Any]] = []
 
     metric_bundle = PyiqaMetricBundle.create(device)
+    dists_metric = get_pyiqa_metric("dists", device)
     components = load_training_components(device)
     quality_mean, quality_std = compute_quality_normalization_stats(
         train_dataset,
@@ -175,12 +224,14 @@ def main():
                         output = model(lq, quality).clamp(0.0, 1.0)
                     else:
                         output = model(lq).clamp(0.0, 1.0)
+                    output = ensure_grayscale_tensor(output).clamp(0.0, 1.0)
 
             psnr = compute_psnr(output, hr)
             ssim = compute_ssim(output, hr)
             mae = compute_mae(output, hr)
             edge = compute_edge_score(output, hr)
             lpips = compute_lpips(output, hr, device, metric=metric_bundle.lpips)
+            dists = compute_dists(output, hr, device, dists_metric)
             niqe = compute_niqe(output, device, metric=metric_bundle.niqe)
             brisque = compute_brisque(output, device, metric=metric_bundle.brisque)
 
@@ -191,6 +242,7 @@ def main():
                     "PSNR": psnr,
                     "SSIM": ssim,
                     "LPIPS": lpips,
+                    "DISTS": dists,
                     "MAE": mae,
                     "EdgeScore": edge,
                     "NIQE": niqe,
@@ -199,7 +251,7 @@ def main():
             )
 
     # write per-image csv
-    metric_columns = ["PSNR", "SSIM", "LPIPS", "MAE", "EdgeScore", "NIQE", "BRISQUE"]
+    metric_columns = ["PSNR", "SSIM", "LPIPS", "DISTS", "MAE", "EdgeScore", "NIQE", "BRISQUE"]
     fieldnames = ["image_id", "method"] + metric_columns
     OUTPUT_PER_IMAGE.parent.mkdir(parents=True, exist_ok=True)
     with open(OUTPUT_PER_IMAGE, "w", newline="") as f:
@@ -230,11 +282,20 @@ def main():
         for row in summary_rows:
             writer.writerow(row)
 
+    swinir_rows = [row for row in per_image_rows if row["method"] == SWINIR_LABEL]
+    if swinir_rows:
+        swinir_summary = [row for row in summary_rows if row["method"] == SWINIR_LABEL]
+        write_csv_rows(SWINIR_EVAL_DIR / "recon_per_image.csv", swinir_rows, fieldnames)
+        write_csv_rows(SWINIR_EVAL_DIR / "recon_summary.csv", swinir_summary, fieldnames2)
+
     OUTPUT_TABLE.write_text(build_markdown_table(summary_rows, metric_columns), encoding="utf-8")
 
     print("Per-image CSV:", OUTPUT_PER_IMAGE)
     print("Summary CSV:", OUTPUT_SUMMARY)
     print("Markdown table:", OUTPUT_TABLE)
+    if swinir_rows:
+        print("SwinIR recon per-image CSV:", SWINIR_EVAL_DIR / "recon_per_image.csv")
+        print("SwinIR recon summary CSV:", SWINIR_EVAL_DIR / "recon_summary.csv")
     for row in summary_rows:
         print(row)
 
