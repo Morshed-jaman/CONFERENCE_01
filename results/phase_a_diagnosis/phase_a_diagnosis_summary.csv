@@ -1,0 +1,2 @@
+last_epoch,last_val_lpips,slope_last10,r2_last10,cross_epoch,delta_epochs_to_gate,plateaued,verdict
+32,0.125527,-0.001959230303030304,0.9888810214106659,38.148722596690725,6.148722596690725,False,A) CONTINUE

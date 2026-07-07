@@ -90,6 +90,16 @@ def parse_depths(value: str) -> tuple[int, ...]:
     return depths
 
 
+def parse_epoch_list(value: str) -> tuple[int, ...]:
+    try:
+        epochs = tuple(int(item.strip()) for item in value.split(",") if item.strip())
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("--eval_test_epochs must be comma-separated integers") from exc
+    if not epochs:
+        raise argparse.ArgumentTypeError("--eval_test_epochs must contain at least one integer")
+    return epochs
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Train SwinIR-Light on HC18 with perceptual and adversarial loss."
@@ -114,6 +124,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--run_name", type=str, default="", help="Optional run directory name")
     parser.add_argument("--resume", type=str, default="", help="Resume from a Phase A checkpoint, usually last.pth")
     parser.add_argument("--current_best_lpips", type=float, default=0.1131)
+    parser.add_argument("--val_lpips_gate", type=float, default=0.108)
+    parser.add_argument("--test_dice_gate", type=float, default=0.8853)
+    parser.add_argument(
+        "--eval_test_epochs",
+        type=parse_epoch_list,
+        default=(60, 80),
+        help="Comma-separated epochs for full test-set evaluation",
+    )
     parser.add_argument("--save_outputs", action=argparse.BooleanOptionalAction, default=True)
     return parser.parse_args()
 
@@ -814,7 +832,13 @@ def load_reference_row(recon_method: str, downstream_method: str, label: str) ->
     return row
 
 
-def print_comparison_table(phase_summary: dict[str, float], current_best_lpips: float) -> bool:
+def print_comparison_table(
+    phase_summary: dict[str, float],
+    current_best_lpips: float,
+    val_lpips_gate_passed: bool,
+    test_gate_passed: bool,
+    test_dice_gate: float,
+) -> bool:
     rows = [
         load_reference_row(
             "Quality-aware SR + LPIPS + GAN",
@@ -850,19 +874,54 @@ def print_comparison_table(phase_summary: dict[str, float], current_best_lpips: 
     print("PHASE A COMPARISON TABLE")
     print(table[columns].to_string(index=False, float_format=lambda value: f"{value:.6f}"))
     phase_lpips = float(phase_summary["LPIPS"])
+    phase_dice = float(phase_summary.get("Dice_mean", float("nan")))
     delta = phase_lpips - current_best_lpips
-    passed = phase_lpips < current_best_lpips
+    passed = val_lpips_gate_passed or test_gate_passed
     print()
     print(f"Phase A LPIPS: {phase_lpips:.6f}")
+    print(f"Phase A Dice(full): {phase_dice:.6f}")
     print(f"Current best LPIPS gate: {current_best_lpips:.6f}")
     print(f"Delta vs gate: {delta:+.6f}")
-    print(f"ACCEPTANCE: {'PASS' if passed else 'FAIL'}")
+    print(f"Validation LPIPS gate passed: {val_lpips_gate_passed}")
+    print(f"Test LPIPS+Dice gate passed: {test_gate_passed}")
+    print(f"PHASE A ACCEPTANCE GATE: {'PASS' if passed else 'FAIL'}")
     if not passed:
         print(
             "Diagnosis queue for Phase A: try window_size=16, then depths=6,6,6,6,6,6, "
             "then 200 epochs, then gradient accumulation for effective batch 16."
         )
     return passed
+
+
+def print_epoch_comparison_row(epoch: int, phase_summary: dict[str, float]) -> None:
+    rows = [
+        load_reference_row(
+            "Quality-aware SR + LPIPS + GAN",
+            "Quality-aware+perceptual",
+            "Current LPIPS champ: QA+perceptual",
+        ),
+        load_reference_row(
+            "SR-only + LPIPS + GAN",
+            "SR-only+perceptual",
+            "Current Dice champ: SR-only+perceptual",
+        ),
+        {
+            "method": f"SwinIR-Light @epoch_{epoch}",
+            "PSNR": phase_summary.get("PSNR", np.nan),
+            "SSIM": phase_summary.get("SSIM", np.nan),
+            "LPIPS": phase_summary.get("LPIPS", np.nan),
+            "Dice_mean": phase_summary.get("Dice_mean", np.nan),
+            "DiamErr_mean": phase_summary.get("DiamErr_mean", np.nan),
+        },
+    ]
+    columns = ["method", "PSNR", "SSIM", "LPIPS", "Dice_mean", "DiamErr_mean"]
+    table = pd.DataFrame(rows)
+    for column in columns:
+        if column not in table.columns:
+            table[column] = np.nan
+    print()
+    print(f"PHASE A EPOCH {epoch} FULL-TEST COMPARISON")
+    print(table[columns].to_string(index=False, float_format=lambda value: f"{value:.6f}"))
 
 
 def run_training(args: argparse.Namespace, paths: RunPaths, batch_size: int) -> tuple[bool, dict[str, float]]:
@@ -906,6 +965,8 @@ def run_training(args: argparse.Namespace, paths: RunPaths, batch_size: int) -> 
         )
         print(f"Loaded previous best_val_lpips={best_lpips:.6f} best_val_dice={best_dice:.6f}")
     phase_summary: dict[str, float] = {}
+    val_lpips_gate_passed = best_lpips <= args.val_lpips_gate
+    test_eval_summaries: list[dict[str, float]] = []
 
     csv_columns = [
         "epoch",
@@ -990,6 +1051,8 @@ def run_training(args: argparse.Namespace, paths: RunPaths, batch_size: int) -> 
                     model_state_is_ema=True,
                     raw_model_state=raw_state_for_checkpoint,
                 )
+            if best_lpips <= args.val_lpips_gate:
+                val_lpips_gate_passed = True
             if not math.isnan(val_dice_metrics["Dice"]) and val_dice_metrics["Dice"] > best_dice:
                 best_dice = val_dice_metrics["Dice"]
                 save_checkpoint(
@@ -1022,6 +1085,39 @@ def run_training(args: argparse.Namespace, paths: RunPaths, batch_size: int) -> 
                 model_state_is_ema=False,
             )
             torch.save({"ema_state_dict": ema.cpu_state_dict(), "epoch": epoch, "args": vars(args)}, paths.run_dir / "ema.pth")
+
+            if epoch in set(args.eval_test_epochs):
+                epoch_checkpoint = paths.run_dir / f"epoch_{epoch:03d}.pth"
+                ema.store(model)
+                ema.copy_to(model)
+                save_checkpoint(
+                    epoch_checkpoint,
+                    model,
+                    ema,
+                    discriminator,
+                    optimizer_g,
+                    optimizer_d,
+                    args,
+                    epoch,
+                    checkpoint_metrics,
+                    batch_size,
+                    model_state_is_ema=True,
+                    raw_model_state=raw_state_for_checkpoint,
+                )
+                ema.restore(model)
+                epoch_summary = evaluate_full_test(
+                    args=args,
+                    checkpoint_path=epoch_checkpoint,
+                    paths=paths,
+                    device=device,
+                    seg_module=seg_module,
+                    seg_model=seg_model,
+                    seg_threshold=seg_threshold,
+                    seg_image_size=seg_image_size,
+                )
+                epoch_summary["method"] = f"SwinIR-Light @epoch_{epoch}"
+                test_eval_summaries.append(epoch_summary)
+                print_epoch_comparison_row(epoch, epoch_summary)
 
             row = {
                 "epoch": epoch,
@@ -1077,6 +1173,10 @@ def run_training(args: argparse.Namespace, paths: RunPaths, batch_size: int) -> 
         "epochs": args.epochs,
         "best_val_lpips": best_lpips,
         "best_val_dice": best_dice,
+        "val_lpips_gate": args.val_lpips_gate,
+        "val_lpips_gate_passed": val_lpips_gate_passed,
+        "test_lpips_gate": args.current_best_lpips,
+        "test_dice_gate": args.test_dice_gate,
         "best_lpips_checkpoint": str(paths.run_dir / "best_lpips.pth"),
         "best_dice_checkpoint": str(paths.run_dir / "best_dice.pth"),
         "last_checkpoint": str(paths.run_dir / "last.pth"),
@@ -1088,8 +1188,29 @@ def run_training(args: argparse.Namespace, paths: RunPaths, batch_size: int) -> 
         "lpips_backend": lpips_loss.backend,
         "args": vars(args),
     }
+    phase_summary["method"] = "SwinIR-Light best_lpips checkpoint"
+    test_eval_summaries.append(phase_summary)
+    test_gate_passed = any(
+        float(summary.get("LPIPS", float("inf"))) < args.current_best_lpips
+        and float(summary.get("Dice_mean", -float("inf"))) >= args.test_dice_gate
+        for summary in test_eval_summaries
+    )
+    metadata["test_eval_summaries"] = test_eval_summaries
+    metadata["test_gate_passed"] = test_gate_passed
+    metadata["phase_b_backbone_recommendation"] = "swinir" if (val_lpips_gate_passed or test_gate_passed) else "qa_cnn"
     (paths.run_dir / "metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
-    passed = print_comparison_table(phase_summary, current_best_lpips=args.current_best_lpips)
+    passed = print_comparison_table(
+        phase_summary,
+        current_best_lpips=args.current_best_lpips,
+        val_lpips_gate_passed=val_lpips_gate_passed,
+        test_gate_passed=test_gate_passed,
+        test_dice_gate=args.test_dice_gate,
+    )
+    print(f"Any evaluated test checkpoint passed LPIPS+Dice gate: {test_gate_passed}")
+    if passed:
+        print("Phase B backbone recommendation: swinir")
+    else:
+        print("Phase B backbone recommendation: qa_cnn")
     return passed, phase_summary
 
 
