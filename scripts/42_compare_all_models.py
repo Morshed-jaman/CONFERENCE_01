@@ -12,6 +12,8 @@ import sys
 from pathlib import Path
 from typing import Any, Callable, Dict, List
 
+import cv2
+import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
@@ -41,6 +43,12 @@ OUTPUT_TABLE = PROJECT_ROOT / "results" / "final_all_hc18_comparison_table.md"
 SWINIR_LABEL = "SwinIR-Light Phase A"
 SWINIR_CHECKPOINT = PROJECT_ROOT / "results" / "models" / "swinir_light_phase_a_seed42" / "best_lpips.pth"
 SWINIR_EVAL_DIR = PROJECT_ROOT / "results" / "eval" / "swinir_light_phase_a" / "test"
+RESSHIFT_LABEL = "ResShift"
+RESSHIFT_EVAL_DIR = PROJECT_ROOT / "results" / "eval" / "resshift" / "test"
+RESSHIFT_RECON_DIR = RESSHIFT_EVAL_DIR / "restored"
+OSEDIFF_LABEL = "OSEDiff"
+OSEDIFF_EVAL_DIR = PROJECT_ROOT / "results" / "eval" / "osediff" / "test"
+OSEDIFF_RECON_DIR = OSEDIFF_EVAL_DIR / "restored"
 
 MODELS = [
     ("identity", None, "LQ_mixed baseline"),
@@ -61,6 +69,8 @@ MODELS = [
         "Quality-aware SR + LPIPS + GAN",
     ),
     ("swinir_light", SWINIR_CHECKPOINT, SWINIR_LABEL),
+    ("png_dir", RESSHIFT_RECON_DIR, RESSHIFT_LABEL),
+    ("png_dir", OSEDIFF_RECON_DIR, OSEDIFF_LABEL),
 ]
 
 
@@ -85,6 +95,17 @@ def ensure_grayscale_tensor(output: torch.Tensor) -> torch.Tensor:
         weights = output.new_tensor([0.299, 0.587, 0.114]).view(1, 3, 1, 1)
         return (output * weights).sum(dim=1, keepdim=True)
     return output
+
+
+def load_png_tensor(image_path: Path, reference: torch.Tensor, device: torch.device) -> torch.Tensor:
+    image = cv2.imread(str(image_path), cv2.IMREAD_GRAYSCALE)
+    if image is None:
+        raise FileNotFoundError(f"Missing precomputed reconstruction: {image_path}")
+    target_h, target_w = int(reference.shape[-2]), int(reference.shape[-1])
+    if image.shape != (target_h, target_w):
+        image = cv2.resize(image, (target_w, target_h), interpolation=cv2.INTER_AREA)
+    image = np.squeeze(image).astype(np.float32) / 255.0
+    return torch.from_numpy(image).unsqueeze(0).unsqueeze(0).to(device=device, dtype=torch.float32)
 
 
 def to_rgb_tensor(image: torch.Tensor, device: torch.device) -> torch.Tensor:
@@ -200,7 +221,10 @@ def main():
     for idx, (key, checkpoint, label) in enumerate(MODELS):
         print(f"Evaluating: {label}")
         model = None
-        if checkpoint is not None and checkpoint.exists():
+        if key == "png_dir":
+            if checkpoint is None or not checkpoint.exists():
+                raise FileNotFoundError(f"Missing reconstruction directory for {label}: {checkpoint}")
+        elif checkpoint is not None and checkpoint.exists():
             model = load_model_for_key(key, checkpoint, device, components)
         elif checkpoint is not None:
             print(f"  missing checkpoint, falling back to LQ input: {checkpoint}")
@@ -214,7 +238,9 @@ def main():
             lq = sample["lq"].to(device)
             hr = sample["hr"].to(device)
 
-            if model is None:
+            if key == "png_dir":
+                output = load_png_tensor(checkpoint / f"{image_id}.png", hr, device)
+            elif model is None:
                 output = lq
             else:
                 with torch.no_grad():
@@ -287,6 +313,16 @@ def main():
         swinir_summary = [row for row in summary_rows if row["method"] == SWINIR_LABEL]
         write_csv_rows(SWINIR_EVAL_DIR / "recon_per_image.csv", swinir_rows, fieldnames)
         write_csv_rows(SWINIR_EVAL_DIR / "recon_summary.csv", swinir_summary, fieldnames2)
+    resshift_rows = [row for row in per_image_rows if row["method"] == RESSHIFT_LABEL]
+    if resshift_rows:
+        resshift_summary = [row for row in summary_rows if row["method"] == RESSHIFT_LABEL]
+        write_csv_rows(RESSHIFT_EVAL_DIR / "recon_per_image.csv", resshift_rows, fieldnames)
+        write_csv_rows(RESSHIFT_EVAL_DIR / "recon_summary.csv", resshift_summary, fieldnames2)
+    osediff_rows = [row for row in per_image_rows if row["method"] == OSEDIFF_LABEL]
+    if osediff_rows:
+        osediff_summary = [row for row in summary_rows if row["method"] == OSEDIFF_LABEL]
+        write_csv_rows(OSEDIFF_EVAL_DIR / "recon_per_image.csv", osediff_rows, fieldnames)
+        write_csv_rows(OSEDIFF_EVAL_DIR / "recon_summary.csv", osediff_summary, fieldnames2)
 
     OUTPUT_TABLE.write_text(build_markdown_table(summary_rows, metric_columns), encoding="utf-8")
 
@@ -296,6 +332,12 @@ def main():
     if swinir_rows:
         print("SwinIR recon per-image CSV:", SWINIR_EVAL_DIR / "recon_per_image.csv")
         print("SwinIR recon summary CSV:", SWINIR_EVAL_DIR / "recon_summary.csv")
+    if resshift_rows:
+        print("ResShift recon per-image CSV:", RESSHIFT_EVAL_DIR / "recon_per_image.csv")
+        print("ResShift recon summary CSV:", RESSHIFT_EVAL_DIR / "recon_summary.csv")
+    if osediff_rows:
+        print("OSEDiff recon per-image CSV:", OSEDIFF_EVAL_DIR / "recon_per_image.csv")
+        print("OSEDiff recon summary CSV:", OSEDIFF_EVAL_DIR / "recon_summary.csv")
     for row in summary_rows:
         print(row)
 

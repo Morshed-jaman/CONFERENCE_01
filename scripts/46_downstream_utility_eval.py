@@ -41,6 +41,12 @@ QA_PERCEPTUAL_CHECKPOINT = RESULTS_DIR / "models" / "qa_sr_perceptual_hc18_final
 SWINIR_LABEL = "SwinIR-Light Phase A"
 SWINIR_CHECKPOINT = RESULTS_DIR / "models" / "swinir_light_phase_a_seed42" / "best_lpips.pth"
 SWINIR_EVAL_DIR = RESULTS_DIR / "eval" / "swinir_light_phase_a" / "test"
+RESSHIFT_LABEL = "ResShift"
+RESSHIFT_EVAL_DIR = RESULTS_DIR / "eval" / "resshift" / "test"
+RESSHIFT_OUTPUT_DIR = RESSHIFT_EVAL_DIR / "restored"
+OSEDIFF_LABEL = "OSEDiff"
+OSEDIFF_EVAL_DIR = RESULTS_DIR / "eval" / "osediff" / "test"
+OSEDIFF_OUTPUT_DIR = OSEDIFF_EVAL_DIR / "restored"
 CNN_RESIDUAL_OUTPUT_DIR = RESULTS_DIR / "sr_outputs" / "cnn_residual_diffusion_sr"
 
 
@@ -51,6 +57,7 @@ class MethodSpec:
     kind: str
     model_key: str | None = None
     checkpoint: Path | None = None
+    output_dir: Path | None = None
 
 
 METHODS = [
@@ -73,6 +80,8 @@ METHODS = [
         QA_PERCEPTUAL_CHECKPOINT,
     ),
     MethodSpec("swinir_light_phase_a", SWINIR_LABEL, "sr_model", "swinir_light", SWINIR_CHECKPOINT),
+    MethodSpec("resshift", RESSHIFT_LABEL, "png", output_dir=RESSHIFT_OUTPUT_DIR),
+    MethodSpec("osediff", OSEDIFF_LABEL, "png", output_dir=OSEDIFF_OUTPUT_DIR),
     MethodSpec("cnn_residual_diffusion", "CNN-Residual Diffusion", "png"),
 ]
 
@@ -209,10 +218,11 @@ def make_sr_image(
     if method.kind == "lq":
         return tensor_to_uint8_image(sample["lq"])
     if method.kind == "png":
-        image_path = CNN_RESIDUAL_OUTPUT_DIR / f"{sample['image_id']}.png"
+        image_dir = method.output_dir or CNN_RESIDUAL_OUTPUT_DIR
+        image_path = image_dir / f"{sample['image_id']}.png"
         image = cv2.imread(str(image_path), cv2.IMREAD_GRAYSCALE)
         if image is None:
-            raise FileNotFoundError(f"Missing CNN residual diffusion output: {image_path}")
+            raise FileNotFoundError(f"Missing precomputed output for {method.label}: {image_path}")
         return np.squeeze(image).astype(np.uint8)
     if method.kind != "sr_model":
         raise ValueError(f"Unsupported method kind: {method.kind}")
@@ -400,17 +410,25 @@ def main() -> int:
             writer.writerow(row)
     summary_df.to_csv(SUMMARY_CSV, index=False)
 
-    swinir_rows = [row for row in rows if row["method"] == SWINIR_LABEL]
-    if swinir_rows:
-        SWINIR_EVAL_DIR.mkdir(parents=True, exist_ok=True)
-        pd.DataFrame(swinir_rows, columns=PER_IMAGE_COLUMNS).to_csv(
-            SWINIR_EVAL_DIR / "downstream_per_image.csv",
-            index=False,
-        )
-        summary_df[summary_df["method"] == SWINIR_LABEL].to_csv(
-            SWINIR_EVAL_DIR / "downstream_summary.csv",
-            index=False,
-        )
+    export_specs = [
+        (SWINIR_LABEL, SWINIR_EVAL_DIR, "SwinIR"),
+        (RESSHIFT_LABEL, RESSHIFT_EVAL_DIR, "ResShift"),
+        (OSEDIFF_LABEL, OSEDIFF_EVAL_DIR, "OSEDiff"),
+    ]
+    exported_methods: list[tuple[str, Path]] = []
+    for method_label, eval_dir, export_label in export_specs:
+        method_rows = [row for row in rows if row["method"] == method_label]
+        if method_rows:
+            eval_dir.mkdir(parents=True, exist_ok=True)
+            pd.DataFrame(method_rows, columns=PER_IMAGE_COLUMNS).to_csv(
+                eval_dir / "downstream_per_image.csv",
+                index=False,
+            )
+            summary_df[summary_df["method"] == method_label].to_csv(
+                eval_dir / "downstream_summary.csv",
+                index=False,
+            )
+            exported_methods.append((export_label, eval_dir / "downstream_per_image.csv"))
 
     if skipped_unreadable_masks or skipped_empty_masks:
         print(
@@ -425,8 +443,8 @@ def main() -> int:
     print(f"Wrote per-image metrics: {PER_IMAGE_CSV.relative_to(PROJECT_ROOT)}")
     print(f"Wrote summary metrics: {SUMMARY_CSV.relative_to(PROJECT_ROOT)}")
     print(f"Wrote predicted masks under: {MASK_ROOT.relative_to(PROJECT_ROOT)}")
-    if swinir_rows:
-        print(f"Wrote SwinIR downstream rows: {(SWINIR_EVAL_DIR / 'downstream_per_image.csv').relative_to(PROJECT_ROOT)}")
+    for export_label, export_path in exported_methods:
+        print(f"Wrote {export_label} downstream rows: {export_path.relative_to(PROJECT_ROOT)}")
     print_acceptance(summary_df)
 
     if per_image_df.empty:

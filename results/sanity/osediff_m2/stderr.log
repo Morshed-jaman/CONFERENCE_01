@@ -1,0 +1,49 @@
+Traceback (most recent call last):
+  File "D:\CSE_21201016_BRAC\CONFERENCE\Fetal_SR_Project\scripts\osediff\run_osediff_on_hc18.py", line 341, in <module>
+    raise SystemExit(main())
+  File "D:\CSE_21201016_BRAC\CONFERENCE\Fetal_SR_Project\scripts\osediff\run_osediff_on_hc18.py", line 332, in main
+    sticky_chop = run_chunk(chunk_ids, args, index, len(chunks), sticky_chop)
+  File "D:\CSE_21201016_BRAC\CONFERENCE\Fetal_SR_Project\scripts\osediff\run_osediff_on_hc18.py", line 283, in run_chunk
+    records, output = run_attempt(pending, args, chop_size, chunk_index, total_chunks)
+  File "D:\CSE_21201016_BRAC\CONFERENCE\Fetal_SR_Project\scripts\osediff\run_osediff_on_hc18.py", line 255, in run_attempt
+    raise RuntimeError(f"Upstream OSEDiff failed ({process.returncode}):\n{combined[-4000:]}")
+RuntimeError: Upstream OSEDiff failed (1):
+
+D:\CSE_21201016_BRAC\CONFERENCE\baselines\venvs\osediff\lib\site-packages\torchvision\transforms\functional_tensor.py:5: UserWarning: The torchvision.transforms.functional_tensor module is deprecated in 0.15 and will be **removed in 0.17**. Please don't rely on it. You probably just need to use APIs in torchvision.transforms.functional or in torchvision.transforms.v2.functional.
+  warnings.warn(
+A matching Triton is not available, some optimizations will not be enabled.
+Error caught was: No module named 'triton'
+D:\CSE_21201016_BRAC\CONFERENCE\baselines\venvs\osediff\lib\site-packages\timm\models\layers\__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+D:\CSE_21201016_BRAC\CONFERENCE\baselines\venvs\osediff\lib\site-packages\timm\models\hub.py:4: FutureWarning: Importing from timm.models.hub is deprecated, please import via timm.models
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.models", FutureWarning)
+D:\CSE_21201016_BRAC\CONFERENCE\baselines\venvs\osediff\lib\site-packages\timm\models\registry.py:4: FutureWarning: Importing from timm.models.registry is deprecated, please import via timm.models
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.models", FutureWarning)
+D:\CSE_21201016_BRAC\CONFERENCE\baselines\venvs\osediff\lib\site-packages\timm\models\helpers.py:7: FutureWarning: Importing from timm.models.helpers is deprecated, please import via timm.models
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.models", FutureWarning)
+Traceback (most recent call last):
+  File "D:\CSE_21201016_BRAC\CONFERENCE\Fetal_SR_Project\scripts\osediff\_run_test_osediff.py", line 20, in <module>
+    runpy.run_path(str(OSEDIFF_ROOT / "test_osediff.py"), run_name="__main__")
+  File "runpy.py", line 289, in run_path
+  File "runpy.py", line 96, in _run_module_code
+  File "runpy.py", line 86, in _run_code
+  File "D:\CSE_21201016_BRAC\CONFERENCE\baselines\repos\OSEDiff\test_osediff.py", line 75, in <module>
+    DAPE = ram(pretrained=args.ram_path,
+  File "D:\CSE_21201016_BRAC\CONFERENCE\baselines\repos\OSEDiff\ram\models\ram_lora.py", line 329, in ram
+    model = RAMLora(**kwargs)
+  File "D:\CSE_21201016_BRAC\CONFERENCE\baselines\repos\OSEDiff\ram\models\ram_lora.py", line 109, in __init__
+    self.tokenizer = init_tokenizer()
+  File "D:\CSE_21201016_BRAC\CONFERENCE\baselines\repos\OSEDiff\ram\models\utils.py", line 132, in init_tokenizer
+    tokenizer = BertTokenizer.from_pretrained('/home/notebook/data/group/LowLevelLLM/LLM/bert-base-uncased', local_files_only=True)
+  File "D:\CSE_21201016_BRAC\CONFERENCE\baselines\venvs\osediff\lib\site-packages\transformers\tokenization_utils_base.py", line 1770, in from_pretrained
+    resolved_vocab_files[file_id] = cached_file(
+  File "D:\CSE_21201016_BRAC\CONFERENCE\baselines\venvs\osediff\lib\site-packages\transformers\utils\hub.py", line 409, in cached_file
+    resolved_file = hf_hub_download(
+  File "D:\CSE_21201016_BRAC\CONFERENCE\baselines\venvs\osediff\lib\site-packages\huggingface_hub\utils\_deprecation.py", line 101, in inner_f
+    return f(*args, **kwargs)
+  File "D:\CSE_21201016_BRAC\CONFERENCE\baselines\venvs\osediff\lib\site-packages\huggingface_hub\utils\_validators.py", line 106, in _inner_fn
+    validate_repo_id(arg_value)
+  File "D:\CSE_21201016_BRAC\CONFERENCE\baselines\venvs\osediff\lib\site-packages\huggingface_hub\utils\_validators.py", line 154, in validate_repo_id
+    raise HFValidationError(
+huggingface_hub.errors.HFValidationError: Repo id must be in the form 'repo_name' or 'namespace/repo_name': '/home/notebook/data/group/LowLevelLLM/LLM/bert-base-uncased'. Use `repo_type` argument if needed.
+

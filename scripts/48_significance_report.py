@@ -37,6 +37,7 @@ BOOTSTRAP_SUMMARY = PROJECT_ROOT / "results" / "bootstrap_metric_summary.csv"
 SIGNIFICANCE_REPORT = PROJECT_ROOT / "results" / "significance_report.csv"
 SWINIR_LABEL = "SwinIR-Light Phase A"
 SWINIR_CHECKPOINT = PROJECT_ROOT / "results" / "models" / "swinir_light_phase_a_seed42" / "best_lpips.pth"
+EVAL_ROOT = PROJECT_ROOT / "results" / "eval"
 
 RECON_TO_CANONICAL = {
     "LQ_mixed baseline": "LQ_mixed",
@@ -48,6 +49,14 @@ RECON_TO_CANONICAL = {
 }
 
 CANONICAL_TO_RECON = {value: key for key, value in RECON_TO_CANONICAL.items()}
+CORE_SIGNIFICANCE_METHODS = {
+    "LQ_mixed",
+    "SR-only",
+    "Quality-aware",
+    "SR-only+perceptual",
+    "Quality-aware+perceptual",
+    SWINIR_LABEL,
+}
 
 
 def parse_args() -> argparse.Namespace:
@@ -189,9 +198,34 @@ def compute_dists_cache(device: torch.device) -> pd.DataFrame:
     return df
 
 
-def load_metric_tables(args: argparse.Namespace) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def discover_eval_recon_rows() -> tuple[pd.DataFrame, set[str]]:
+    rows: list[pd.DataFrame] = []
+    methods: set[str] = set()
+    for path in sorted(EVAL_ROOT.glob("*/test/recon_per_image.csv")):
+        try:
+            df = pd.read_csv(path)
+        except Exception as exc:
+            print(f"WARNING: could not read discovered recon CSV {path}: {exc}")
+            continue
+        if not {"image_id", "method"}.issubset(df.columns):
+            print(f"WARNING: discovered recon CSV is missing image_id/method columns: {path}")
+            continue
+        df = df.copy()
+        df["method"] = df["method"].astype(str).map(RECON_TO_CANONICAL).fillna(df["method"].astype(str))
+        methods.update(df["method"].dropna().astype(str).unique())
+        rows.append(df)
+    if not rows:
+        return pd.DataFrame(), set()
+    return pd.concat(rows, ignore_index=True, sort=False), methods
+
+
+def load_metric_tables(args: argparse.Namespace) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, set[str]]:
     recon = pd.read_csv(RECON_PER_IMAGE)
     recon["method"] = recon["method"].map(RECON_TO_CANONICAL).fillna(recon["method"])
+    discovered_recon, discovered_methods = discover_eval_recon_rows()
+    if not discovered_recon.empty:
+        recon = pd.concat([recon, discovered_recon], ignore_index=True, sort=False)
+        recon = recon.drop_duplicates(subset=["image_id", "method"], keep="last")
     downstream = pd.read_csv(DOWNSTREAM_PER_IMAGE)
     membership = pd.read_csv(HARD_MEMBERSHIP)
 
@@ -216,7 +250,7 @@ def load_metric_tables(args: argparse.Namespace) -> tuple[pd.DataFrame, pd.DataF
                 recon = recon.drop(columns=["DISTS_cache"])
     if "DISTS" not in recon.columns:
         recon["DISTS"] = np.nan
-    return recon, downstream, membership
+    return recon, downstream, membership, discovered_methods
 
 
 def subset_ids(membership: pd.DataFrame) -> dict[str, set[str]]:
@@ -313,7 +347,7 @@ def make_metric_summary(
     return pd.DataFrame(rows)
 
 
-def planned_tests() -> list[tuple[str, str, str, str]]:
+def planned_tests(discovered_methods: set[str]) -> list[tuple[str, str, str, str]]:
     tests: list[tuple[str, str, str, str]] = []
     full_and_hard = ["full_test", "bottom25_lq_dice", "lq_dice_lt_0_85", "top25_lq_lpips"]
     hard_only = ["bottom25_lq_dice", "lq_dice_lt_0_85", "top25_lq_lpips"]
@@ -327,6 +361,11 @@ def planned_tests() -> list[tuple[str, str, str, str]]:
     for subset in hard_only:
         tests.append(("LQ_mixed", "SR-only+perceptual", "Dice", subset))
         tests.append(("LQ_mixed", SWINIR_LABEL, "Dice", subset))
+    for method in sorted(discovered_methods - CORE_SIGNIFICANCE_METHODS):
+        tests.append((SWINIR_LABEL, method, "LPIPS", "full_test"))
+        tests.append((SWINIR_LABEL, method, "Dice", "full_test"))
+        tests.append(("LQ_mixed", method, "LPIPS", "full_test"))
+        tests.append(("LQ_mixed", method, "Dice", "full_test"))
     return tests
 
 
@@ -334,19 +373,35 @@ def make_significance_report(
     recon: pd.DataFrame,
     downstream: pd.DataFrame,
     subsets: dict[str, set[str]],
+    discovered_methods: set[str],
     rng: np.random.Generator,
     n_bootstrap: int,
+    auto_discovery_seed: int,
 ) -> pd.DataFrame:
     rows = []
-    for method_a, method_b, metric, subset_name in planned_tests():
-        ids = subsets[subset_name]
+    available_by_metric = {
+        "LPIPS": set(recon["method"].astype(str)),
+        "Dice": set(downstream["method"].astype(str)),
+    }
+    auto_discovered_extras = discovered_methods - CORE_SIGNIFICANCE_METHODS
+    auto_rng = np.random.default_rng(auto_discovery_seed)
+    for method_a, method_b, metric, subset_name in planned_tests(discovered_methods):
+        available_methods = available_by_metric[metric]
+        if method_a not in available_methods or method_b not in available_methods:
+            continue
         source = recon if metric == "LPIPS" else downstream
+        is_auto_discovered_extra = method_b in auto_discovered_extras
+        if metric == "LPIPS" and subset_name == "full_test" and is_auto_discovered_extra:
+            ids = set(source["image_id"].astype(str))
+        else:
+            ids = subsets[subset_name]
         a_series = aligned_values(source, metric, method_a, ids)
         b_series = aligned_values(source, metric, method_b, ids)
         aligned = pd.concat([a_series.rename("a"), b_series.rename("b")], axis=1, join="inner").dropna()
         a = aligned["a"].to_numpy(dtype=np.float64)
         b = aligned["b"].to_numpy(dtype=np.float64)
-        delta, low, high = paired_bootstrap_delta(a, b, rng, n_bootstrap)
+        delta_rng = auto_rng if is_auto_discovered_extra else rng
+        delta, low, high = paired_bootstrap_delta(a, b, delta_rng, n_bootstrap)
         p_raw = wilcoxon_pvalue(a, b)
         rows.append(
             {
@@ -411,14 +466,17 @@ def main() -> int:
     if n_bootstrap > 1000:
         n_bootstrap = 1000
     rng = np.random.default_rng(args.seed)
-    recon, downstream, membership = load_metric_tables(args)
+    recon, downstream, membership, discovered_methods = load_metric_tables(args)
+    discovered_methods = discovered_methods & set(recon["method"].astype(str)) & set(downstream["method"].astype(str))
     subsets = subset_ids(membership)
     metric_summary = make_metric_summary(recon, downstream, subsets, rng, n_bootstrap)
     metric_summary.to_csv(BOOTSTRAP_SUMMARY, index=False)
-    report = make_significance_report(recon, downstream, subsets, rng, n_bootstrap)
+    report = make_significance_report(recon, downstream, subsets, discovered_methods, rng, n_bootstrap, args.seed)
     report.to_csv(SIGNIFICANCE_REPORT, index=False)
     print(f"Bootstrap metric summary: {BOOTSTRAP_SUMMARY.relative_to(PROJECT_ROOT)}")
     print(f"Significance report: {SIGNIFICANCE_REPORT.relative_to(PROJECT_ROOT)}")
+    if discovered_methods:
+        print(f"Auto-discovered eval methods: {', '.join(sorted(discovered_methods))}")
     if report["p_raw"].isna().any() if not report.empty else False:
         print("WARNING: Some p-values are NaN due to missing paired data.")
     if recon["DISTS"].isna().all():

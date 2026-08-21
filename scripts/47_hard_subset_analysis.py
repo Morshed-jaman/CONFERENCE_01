@@ -23,6 +23,10 @@ MEMBERSHIP_CSV = PROJECT_ROOT / "results" / "downstream_hard_subset_membership.c
 FIGURE_PATH = PROJECT_ROOT / "results" / "downstream_hard_subset_figures" / "dice_hard_vs_full.png"
 SWINIR_LABEL = "SwinIR-Light Phase A"
 SWINIR_EVAL_DIR = PROJECT_ROOT / "results" / "eval" / "swinir_light_phase_a" / "test"
+RESSHIFT_LABEL = "ResShift"
+RESSHIFT_EVAL_DIR = PROJECT_ROOT / "results" / "eval" / "resshift" / "test"
+OSEDIFF_LABEL = "OSEDiff"
+OSEDIFF_EVAL_DIR = PROJECT_ROOT / "results" / "eval" / "osediff" / "test"
 
 METHOD_ORDER = [
     "LQ_mixed",
@@ -32,6 +36,8 @@ METHOD_ORDER = [
     "Quality-aware+perceptual",
     "CNN-Residual Diffusion",
     "SwinIR-Light Phase A",
+    "ResShift",
+    "OSEDiff",
 ]
 
 RECON_METHOD_MAP = {
@@ -41,6 +47,8 @@ RECON_METHOD_MAP = {
     "SR-only+perceptual": "SR-only + LPIPS + GAN",
     "Quality-aware+perceptual": "Quality-aware SR + LPIPS + GAN",
     SWINIR_LABEL: SWINIR_LABEL,
+    RESSHIFT_LABEL: RESSHIFT_LABEL,
+    OSEDIFF_LABEL: OSEDIFF_LABEL,
 }
 
 
@@ -204,6 +212,14 @@ def main() -> int:
     if not swinir_summary.empty:
         SWINIR_EVAL_DIR.mkdir(parents=True, exist_ok=True)
         swinir_summary.to_csv(SWINIR_EVAL_DIR / "hard_subsets.csv", index=False)
+    resshift_summary = summary[summary["method"] == RESSHIFT_LABEL].copy()
+    if not resshift_summary.empty:
+        RESSHIFT_EVAL_DIR.mkdir(parents=True, exist_ok=True)
+        resshift_summary.to_csv(RESSHIFT_EVAL_DIR / "hard_subsets.csv", index=False)
+    osediff_summary = summary[summary["method"] == OSEDIFF_LABEL].copy()
+    if not osediff_summary.empty:
+        OSEDIFF_EVAL_DIR.mkdir(parents=True, exist_ok=True)
+        osediff_summary.to_csv(OSEDIFF_EVAL_DIR / "hard_subsets.csv", index=False)
     plot_dice(summary, Path(args.figure))
 
     missing_methods = [method for method in METHOD_ORDER if method not in set(downstream["method"])]
@@ -213,6 +229,10 @@ def main() -> int:
     print(f"Figure: {Path(args.figure).relative_to(PROJECT_ROOT)}")
     if not swinir_summary.empty:
         print(f"SwinIR hard subsets CSV: {(SWINIR_EVAL_DIR / 'hard_subsets.csv').relative_to(PROJECT_ROOT)}")
+    if not resshift_summary.empty:
+        print(f"ResShift hard subsets CSV: {(RESSHIFT_EVAL_DIR / 'hard_subsets.csv').relative_to(PROJECT_ROOT)}")
+    if not osediff_summary.empty:
+        print(f"OSEDiff hard subsets CSV: {(OSEDIFF_EVAL_DIR / 'hard_subsets.csv').relative_to(PROJECT_ROOT)}")
     print(f"Subset sizes: { {name: len(ids) for name, ids in subset_defs.items()} }")
     if missing_methods:
         print(f"Methods requested but unavailable in downstream per-image CSV: {missing_methods}")
